@@ -1,8 +1,10 @@
 import './style.css';
 import { Tracker } from './tracker.js';
-import { createIcons, Navigation, Signal, WifiOff, MapPin } from 'lucide';
+import { createIcons, Navigation, Signal, WifiOff, MapPin, RefreshCw } from 'lucide';
 
-// Main App HTML
+// Detect iOS
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
 document.querySelector('#app').innerHTML = `
   <div class="container">
     <div class="header">
@@ -38,14 +40,29 @@ document.querySelector('#app').innerHTML = `
       <button id="btn-start" class="btn-start">Start Tracking</button>
       
       <div id="denied-help" class="instruction-box" style="display: none;">
-        <strong>Access Denied</strong>
-        <p>Please enable location services:</p>
+        <strong style="color: var(--error-color);">Location Access Blocked</strong>
+        <p>Your browser blocked the location request. To fix this on <strong>${isIOS ? 'iPhone (iOS)' : 'this device'}</strong>:</p>
+        
+        ${isIOS ? `
         <ol>
-          <li>Tap the 'aA' or Lock icon in the address bar.</li>
-          <li>Select "Website Settings" or "Permissions".</li>
-          <li>Set Location to "Allow".</li>
-          <li>Refresh the page.</li>
+          <li>Open iPhone <strong>Settings</strong> app.</li>
+          <li>Go to <strong>Privacy & Security > Location Services</strong>.</li>
+          <li>Ensure Location Services is <strong>ON</strong>.</li>
+          <li>Find <strong>Safari Websites</strong> (or Chrome) in the list.</li>
+          <li>Set it to <strong>"While Using the App"</strong>.</li>
         </ol>
+        ` : `
+        <ol>
+          <li>Look for a <strong>blocked location icon</strong> in your address bar.</li>
+          <li>Click it and select <strong>"Allow"</strong> or <strong>"Clear settings"</strong>.</li>
+          <li>If no icon appears, check your browser's Site Settings.</li>
+        </ol>
+        `}
+        
+        <button id="btn-reload" style="margin-top: 1rem; width: 100%; background: #333; color: white; padding: 0.75rem; border-radius: 8px; border: 1px solid #555;">
+          <i data-lucide="refresh-cw" style="width: 14px; display: inline-block; vertical-align: middle;"></i> 
+          Reload Page
+        </button>
       </div>
     </div>
   </div>
@@ -65,9 +82,10 @@ const overlayEl = document.getElementById('overlay');
 const btnStart = document.getElementById('btn-start');
 const overlayMsg = document.getElementById('overlay-msg');
 const deniedHelpEl = document.getElementById('denied-help');
+const btnReload = document.getElementById('btn-reload');
 
-// Initialize Icons (Initial Render)
-createIcons({ icons: { Navigation, Signal, WifiOff, MapPin } });
+// Initialize Icons
+createIcons({ icons: { Navigation, Signal, WifiOff, MapPin, RefreshCw } });
 
 // Setup Unit Toggles
 const updateActiveButton = () => {
@@ -84,7 +102,11 @@ btnStart.addEventListener('click', async () => {
   await tracker.start();
 });
 
-// Check permissions on load to possibly auto-hide commands
+btnReload.addEventListener('click', () => {
+  window.location.reload();
+});
+
+// Check permissions on load
 tracker.checkPermission().then(state => {
   if (state === 'granted') {
     overlayEl.classList.add('hidden');
@@ -97,19 +119,18 @@ tracker.onUpdate((data) => {
   if (data.error) {
     statusEl.textContent = data.error;
     statusIconEl.innerHTML = '<i data-lucide="wifi-off"></i>';
-    createIcons({ icons: { WifiOff }, nameAttr: 'data-lucide' }); // Re-render icon
+    createIcons({ icons: { WifiOff }, nameAttr: 'data-lucide' });
 
-    // Explicit handling for Permission Denied to show help
     if (data.error === 'Permission denied') {
       overlayEl.classList.remove('hidden');
       btnStart.style.display = 'none';
       deniedHelpEl.style.display = 'block';
       overlayMsg.textContent = "Location access is required.";
+      createIcons({ icons: { RefreshCw }, nameAttr: 'data-lucide' }); // Re-render reload icon
     }
     return;
   }
 
-  // If we get valid data, hide overlay (sanity check)
   if (data.status === 'active') {
     overlayEl.classList.add('hidden');
   }
@@ -119,7 +140,6 @@ tracker.onUpdate((data) => {
   statusIconEl.innerHTML = '<i data-lucide="signal"></i>';
   createIcons({ icons: { Signal }, nameAttr: 'data-lucide' });
 
-  // Update Speed
   const mps = data.speed;
   let displaySpeed = 0;
 
@@ -130,7 +150,5 @@ tracker.onUpdate((data) => {
   }
 
   speedEl.textContent = Math.round(displaySpeed);
-
-  // Update Accuracy
   accuracyEl.textContent = `± ${Math.round(data.accuracy)}m`;
 });
