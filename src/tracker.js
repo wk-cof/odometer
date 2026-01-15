@@ -14,6 +14,19 @@ export class Tracker {
         this.callbacks.forEach(cb => cb(data));
     }
 
+    async checkPermission() {
+        if (!('geolocation' in navigator)) return 'denied';
+        if ('permissions' in navigator) {
+            try {
+                const result = await navigator.permissions.query({ name: 'geolocation' });
+                return result.state; // 'granted', 'prompt', 'denied'
+            } catch (e) {
+                return 'prompt'; // Fallback
+            }
+        }
+        return 'prompt';
+    }
+
     async start() {
         if (!('geolocation' in navigator)) {
             this.notify({ error: 'Geolocation not supported' });
@@ -25,6 +38,9 @@ export class Tracker {
             timeout: 5000,
             maximumAge: 0
         };
+
+        // If we are already watching, clean up first
+        this.stop();
 
         this.watchId = navigator.geolocation.watchPosition(
             (position) => this.handlePosition(position),
@@ -59,7 +75,8 @@ export class Tracker {
             accuracy, // meters
             heading,
             timestamp: position.timestamp,
-            error: null
+            error: null,
+            status: 'active'
         });
     }
 
