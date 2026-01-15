@@ -3,6 +3,7 @@ export class Tracker {
         this.watchId = null;
         this.wakeLock = null;
         this.callbacks = [];
+        this.lastPosition = null;
         this.lastSpeed = 0;
     }
 
@@ -19,9 +20,9 @@ export class Tracker {
         if ('permissions' in navigator) {
             try {
                 const result = await navigator.permissions.query({ name: 'geolocation' });
-                return result.state; // 'granted', 'prompt', 'denied'
+                return result.state;
             } catch (e) {
-                return 'prompt'; // Fallback
+                return 'prompt';
             }
         }
         return 'prompt';
@@ -35,11 +36,10 @@ export class Tracker {
 
         const options = {
             enableHighAccuracy: true,
-            timeout: 5000,
+            timeout: 10000,
             maximumAge: 0
         };
 
-        // If we are already watching, clean up first
         this.stop();
 
         this.watchId = navigator.geolocation.watchPosition(
@@ -61,20 +61,58 @@ export class Tracker {
             navigator.geolocation.clearWatch(this.watchId);
             this.watchId = null;
         }
+        this.lastPosition = null;
         this.releaseWakeLock();
     }
 
     handlePosition(position) {
-        const { speed, accuracy, heading } = position.coords;
-        // speed is in m/s. Return null if speed is null (stationary/unknown).
-        // If speed is null, standardized to 0 for display.
-        const currentSpeed = speed === null ? 0 : speed;
+        const { latitude, longitude, speed, accuracy, heading } = position.coords;
+        const timestamp = position.timestamp;
+
+        // Native speed is best if available and reliable (> 0)
+        let finalSpeed = speed;
+
+        // If native speed is missing or 0, try manual calculation
+        if ((speed === null || speed === 0) && this.lastPosition) {
+            const dist = this.getDistanceFromLatLonInMeters(
+                this.lastPosition.latitude,
+                this.lastPosition.longitude,
+                latitude,
+                longitude
+            );
+
+            const timeDiff = (timestamp - this.lastPosition.timestamp) / 1000; // seconds
+
+            // Filtering: Only calculate speed if moved significantly relative to accuracy
+            // This prevents "jitter speed" when standing still
+            // We require movement > accuracy for reliable dead reckoning
+            if (timeDiff > 0 && dist > accuracy) {
+                finalSpeed = dist / timeDiff;
+            }
+        }
+
+        // Apply slight smoothing if we have a previous speed
+        // (Simple Low-pass filter: 70% new, 30% old)
+        if (finalSpeed !== null) {
+            // this.lastSpeed = (finalSpeed * 0.7) + (this.lastSpeed * 0.3);
+            this.lastSpeed = finalSpeed; // Disable smoothing for responsiveness for now
+        } else {
+            this.lastSpeed = 0;
+        }
+
+        // Store this position for next time
+        this.lastPosition = {
+            latitude,
+            longitude,
+            timestamp,
+            accuracy
+        };
 
         this.notify({
-            speed: currentSpeed, // m/s
-            accuracy, // meters
+            speed: this.lastSpeed,
+            accuracy,
             heading,
-            timestamp: position.timestamp,
+            timestamp,
             error: null,
             status: 'active'
         });
@@ -94,7 +132,6 @@ export class Tracker {
         try {
             if ('wakeLock' in navigator) {
                 this.wakeLock = await navigator.wakeLock.request('screen');
-                console.log('Wake Lock active');
             }
         } catch (err) {
             console.warn(`Wake Lock failed: ${err.name}, ${err.message}`);
@@ -106,5 +143,23 @@ export class Tracker {
             await this.wakeLock.release();
             this.wakeLock = null;
         }
+    }
+
+    // Helper: Haversine Formula
+    getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Earth radius in meters
+        const dLat = this.deg2rad(lat2 - lat1);
+        const dLon = this.deg2rad(lon2 - lon1);
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const d = R * c;
+        return d;
+    }
+
+    deg2rad(deg) {
+        return deg * (Math.PI / 180);
     }
 }
