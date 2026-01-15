@@ -1,0 +1,122 @@
+:root {
+  --bg-color: #000000;
+  --text-main: #ffffff;
+  --text-muted: #888888;
+  --accent-color: #00ff9d;
+  /* Neon Green */
+  --accent-dim: rgba(0, 255, 157, 0.1);
+  --error-color: #ffaa00;
+
+  --font-display: 'Inter', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: var(--font-display);
+  overflow: hidden;
+  /* Prevent scroll on mobile */
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  justify-content: space-between;
+  padding: 2rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 2rem;
+  color: var(--accent-color);
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+.speed-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+}
+
+#speed-value {
+  font-size: 12rem;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -5px;
+  text-shadow: 0 0 30px var(--accent-dim);
+}
+
+.unit-toggle {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  background: #111;
+  padding: 0.25rem;
+  border-radius: 99px;
+}
+
+button {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 0.5rem 1.5rem;
+  border-radius: 99px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button.active {
+  background: var(--accent-color);
+  color: #000;
+  box-shadow: 0 0 15px var(--accent-dim);
+}
+
+.footer {
+  padding-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stat .label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+#accuracy-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+}
